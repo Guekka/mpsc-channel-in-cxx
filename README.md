@@ -25,7 +25,7 @@ assert(result == receiver.closed());
 // You can use range-based for loop to receive from the channel.
 for (int v: receiver) {
 	// do something with v
-	// The loop will stop immedately after the sender called close().
+	// The loop will stop after the sender called close() and all items were processed.
 	// Only sender can call close().
 }
 ```
