@@ -241,7 +241,10 @@ public:
       return *this;
     }
     iterator operator++(int) = delete;
-    auto operator<=>(const iterator &) const = default;
+    bool operator==(const iterator &other) const {
+      return receiver == nullptr && other.receiver == nullptr;
+    }
+    bool operator!=(const iterator &other) const { return !(*this == other); }
 
   private:
     Receiver<T> *receiver;
