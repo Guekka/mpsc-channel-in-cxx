@@ -32,14 +32,17 @@ TEST_CASE("From several threads") {
   auto &sender = channel.first;
   auto receiver = std::move(channel.second);
 
-  std::vector<std::jthread> threads;
-
   constexpr int k_size = 1000;
 
-  for (int i = 0; i < k_size; ++i) {
-    threads.emplace_back([sender, i]() mutable { sender.send(i); });
-  }
-  sender.close();
+  auto producer = std::jthread([sender]() mutable {
+    {
+      std::vector<std::jthread> threads;
+      for (int i = 0; i < k_size; ++i) {
+        threads.emplace_back([sender, i]() mutable { sender.send(i); });
+      }
+    }
+    sender.close();
+  });
 
   std::vector<int> results(receiver.begin(), mpsc::Receiver<int>::end());
   std::sort(std::begin(results), std::end(results));
@@ -48,4 +51,12 @@ TEST_CASE("From several threads") {
   std::iota(std::begin(expected), std::end(expected), 0);
 
   REQUIRE(results == expected);
+}
+
+TEST_CASE("move only type") {
+  auto [sender, receiver] = mpsc::Channel<std::unique_ptr<int>>::make();
+
+  sender.send(std::make_unique<int>(1));
+  auto result = receiver.receive();
+  REQUIRE(**result == 1);
 }

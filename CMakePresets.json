@@ -27,10 +27,6 @@
         "VCPKG_MANIFEST_NO_DEFAULT_FEATURES": {
           "type": "BOOL",
           "value": "ON"
-        },
-        "VCPKG_OVERLAY_PORTS": {
-          "type": "STRING",
-          "value": "${sourceDir}/cmake/ports"
         }
       },
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
@@ -124,14 +120,14 @@
       "name": "ninja-linux"
     }
   ],
-   "buildPresets": [
+  "buildPresets": [
     {
       "name": "ninja-windows",
-	  "configurePreset": "ninja-windows"
+      "configurePreset": "ninja-windows"
     },
-	{
+    {
       "name": "ninja-linux",
-	  "configurePreset": "ninja-linux"
+      "configurePreset": "ninja-linux"
     }
   ],
   "version": 3

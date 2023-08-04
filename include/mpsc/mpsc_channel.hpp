@@ -62,8 +62,6 @@ Copyright (c) 2019 liuchibing.
 #include <type_traits>
 #include <utility>
 
-#include <zib/wait_mpsc_queue.hpp>
-
 namespace mpsc {
 
 template <typename T> class Sender;
@@ -77,11 +75,13 @@ public:
 
 template <typename T> class Channel {
 private:
-  Channel() : _queue(std::thread::hardware_concurrency()) {}
+  Channel() = default;
 
-  zib::wait_mpsc_queue<T> _queue;
-  std::atomic<bool> _closed = false;
-  std::atomic<size_t> _queue_size = 0;
+  std::queue<T, std::list<T>> queue;
+  std::mutex mutex;
+  std::condition_variable condvar;
+  bool need_notify = false;
+  bool _closed = false;
 
 public:
   Channel(const Channel<T> &) = delete;
@@ -105,21 +105,42 @@ public:
 
   template <typename U>
     requires std::is_same_v<std::decay_t<U>, T>
-  void send(U &&value, std::uint16_t thread_id) {
-    _queue.enqueue(std::forward<U>(value), thread_id);
-    ++_queue_size;
+  void send(U &&value) {
+    std::unique_lock lock(mutex);
+    if (_closed) {
+      throw channel_closed_exception();
+    }
+    queue.push(std::move(value));
+    if (need_notify) {
+      need_notify = false;
+      lock.unlock();
+      condvar.notify_one();
+    }
   }
 
   std::optional<T> receive() {
-    if (_closed && _queue_size == 0) {
+    std::unique_lock lock(mutex);
+    if (queue.empty()) {
+      need_notify = true;
+      condvar.wait(lock, [this] { return !queue.empty() || _closed; });
+    }
+    if (queue.empty()) {
       return std::nullopt;
     }
-    --_queue_size;
-    auto result = _queue.dequeue();
+    T result = std::move(queue.front());
+    queue.pop();
     return result;
   }
 
-  void close() { _closed = true; }
+  void close() {
+    std::unique_lock lock(mutex);
+    _closed = true;
+    if (need_notify) {
+      need_notify = false;
+      lock.unlock();
+      condvar.notify_one();
+    }
+  }
   bool closed() { return _closed; }
 };
 
@@ -135,7 +156,7 @@ public:
     requires std::is_same_v<std::decay_t<U>, T>
   void send(U &&value) {
     validate();
-    channel->send(std::forward<U>(value), thread_id);
+    channel->send(std::forward<U>(value));
   }
 
   void close() {
@@ -241,7 +262,8 @@ template <typename T> void Receiver<T>::iterator::next() {
 
   std::optional<T> tmp = receiver->receive();
   if (!tmp.has_value()) {
-    *this = end();
+    receiver = nullptr;
+    current.reset();
     return;
   }
 

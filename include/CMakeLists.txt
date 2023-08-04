@@ -7,9 +7,6 @@ target_sources(mpsc_channel PRIVATE
         ${INCLUDE_DIR}/mpsc/mpsc_channel.hpp
 )
 
-find_path(MPSC_ZIB_INCLUDE_DIRS "zib/overflow_mpsc_queue.hpp")
-target_include_directories(mpsc_channel PRIVATE ${MPSC_ZIB_INCLUDE_DIRS})
-
 find_package(OpenMP REQUIRED)
 target_link_libraries(mpsc_channel PRIVATE OpenMP::OpenMP_CXX)
 
