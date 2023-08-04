@@ -1,4 +1,4 @@
-﻿/*
+/*
 mpsc_channel.hpp
 A simple C++ implementation of the 'channel' in rust language (std::mpsc).
 
@@ -25,7 +25,7 @@ assert(result == receiver.closed());
 // You can use range-based for loop to receive from the channel.
 for (int v: receiver) {
 	// do something with v
-	// The loop will stop immedately after the sender called close().
+	// The loop will stop after the sender called close() and all items were processed.
 	// Only sender can call close().
 }
 ```
@@ -197,8 +197,7 @@ public:
 		
 		iterator(): receiver(nullptr) {}
 		iterator(Receiver<T>& receiver): receiver(&receiver) {
-			if (this->receiver->closed()) this->receiver = nullptr;
-			else next();
+			next();
 		}
 	
 		reference operator*() { return current.value(); }
@@ -275,16 +274,13 @@ void Channel<T>::send(const T& value) {
 template <typename T>
 std::optional<T> Channel<T>::receive() {
 	std::unique_lock lock(mutex);
-	if (_closed) {
-		return std::nullopt;
-	}
 	if (queue.empty()) {
 		need_notify = true;
 		condvar.wait(lock, [this] {
 			return !queue.empty() || _closed;
 		});
 	}
-	if (_closed) {
+	if (queue.empty()) {
 		return std::nullopt;
 	}
 	T result = std::move(queue.front());
@@ -296,7 +292,6 @@ template <typename T>
 std::optional<T> Channel<T>::try_receive() {
 	if (mutex.try_lock()) {
 		std::unique_lock lock(mutex, std::adopt_lock);
-		if (_closed) return std::nullopt;
 		if (queue.empty()) return std::nullopt;
 		T result = std::move(queue.front());
 		queue.pop();
@@ -327,13 +322,12 @@ void Receiver<T>::iterator::next() {
 	if (!receiver) return;
 	while(true)
 	{
-		if (receiver->closed()) {
-			receiver = nullptr;
-			current.reset();
-			return;
-		}
 		std::optional<T> tmp = receiver->receive();
-		if (!tmp.has_value()) continue;
+		if (!tmp.has_value() && receiver->closed()) {
+            *this = end();
+            return;
+        }
+        if (!tmp.has_value()) continue;
 		current.emplace(std::move(tmp.value()));
 		return;
 	}
