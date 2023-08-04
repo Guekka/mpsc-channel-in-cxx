@@ -39,6 +39,8 @@ Read the source if you need more information. Sorry for the lack of comments. ï½
 Copyright (c) 2019 liuchibing.
 */
 
+#pragma once
+
 #include <list>
 #include <queue>
 #include <mutex>
