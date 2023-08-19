@@ -1,4 +1,4 @@
-add_library(mpsc_channel STATIC)
+add_library(mpsc_channel INTERFACE)
 
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -7,20 +7,16 @@ target_sources(mpsc_channel PRIVATE
         ${INCLUDE_DIR}/mpsc/mpsc_channel.hpp
 )
 
-find_package(OpenMP REQUIRED)
-target_link_libraries(mpsc_channel PRIVATE OpenMP::OpenMP_CXX)
-
 set_target_properties("${PROJECT_NAME}" PROPERTIES DEBUG_POSTFIX "d")
 set_target_properties("${PROJECT_NAME}" PROPERTIES LINKER_LANGUAGE CXX)
 
-target_compile_features("${PROJECT_NAME}" PUBLIC cxx_std_20)
+target_compile_features("${PROJECT_NAME}" INTERFACE cxx_std_20)
 
 target_include_directories(
-        "${PROJECT_NAME}" SYSTEM
-        PUBLIC "$<BUILD_INTERFACE:${INCLUDE_DIR}>"
+        "${PROJECT_NAME}" INTERFACE
+        "$<BUILD_INTERFACE:${INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-        PRIVATE "$<BUILD_INTERFACE:${INCLUDE_DIR}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+        )
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
